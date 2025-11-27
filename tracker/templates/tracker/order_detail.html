@@ -1818,12 +1818,15 @@
   // Ensure delay reason text is synced on form submission for server fallback
   if (completeForm) {
     completeForm.addEventListener('submit', function() {
-      // Persist the selected reason's text for server fallback
+      // Persist the selected reason's text and ID for server fallback
       const els = getDelayReasonElements();
       if (els.dropdown) {
+        const reasonId = els.dropdown.value || '';
         const reasonText = els.dropdown && els.dropdown.options && els.dropdown.selectedIndex > 0 ? els.dropdown.options[els.dropdown.selectedIndex].text : '';
         const hiddenText = document.getElementById('delayReasonTextHidden');
+        const hiddenId = document.getElementById('delayReasonIdHidden');
         if (hiddenText) hiddenText.value = reasonText;
+        if (hiddenId) hiddenId.value = reasonId;
       }
     });
   }
