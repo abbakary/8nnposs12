@@ -1639,28 +1639,12 @@
     }
   }
 
-  // Ensure delay reason data is properly set on form submission
+  // Ensure delay reason text is synced on form submission for server fallback
   if (delayReasonDropdown && completeForm) {
-    completeForm.addEventListener('submit', function(e) {
+    completeForm.addEventListener('submit', function() {
       // Persist the selected reason's text for server fallback
       const sel = delayReasonDropdown;
-      const reasonId = sel && sel.value ? sel.value : '';
       const reasonText = sel && sel.options && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '';
-
-      // Ensure the delay reason ID is set (this is the primary field)
-      if (reasonId) {
-        // Find the delay_reason input and ensure it has the correct value
-        let delayReasonInput = completeForm.querySelector('input[name="delay_reason"]');
-        if (!delayReasonInput) {
-          delayReasonInput = document.createElement('input');
-          delayReasonInput.type = 'hidden';
-          delayReasonInput.name = 'delay_reason';
-          completeForm.appendChild(delayReasonInput);
-        }
-        delayReasonInput.value = reasonId;
-      }
-
-      // Also persist the selected reason's text for server fallback
       const hiddenText = document.getElementById('delayReasonTextHidden');
       if (hiddenText) hiddenText.value = reasonText;
     });
