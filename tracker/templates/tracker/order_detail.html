@@ -1614,11 +1614,21 @@
         }
       }
     }
-    // Sync hidden text field
+    // Sync hidden text field and display selected reason
     if (delayReasonDropdown && delayReasonDropdown.selectedIndex > 0) {
       const hidden = document.getElementById('delayReasonTextHidden');
       const txt = delayReasonDropdown.options[delayReasonDropdown.selectedIndex].text;
       if (hidden) hidden.value = txt;
+
+      // Show selected reason display
+      const selectedDisplay = document.getElementById('selectedReasonDisplay');
+      const selectedText = document.getElementById('selectedReasonText');
+      if (delayReasonDropdown.value && txt) {
+        if (selectedDisplay) {
+          selectedText.textContent = txt;
+          selectedDisplay.style.display = 'block';
+        }
+      }
     }
   }
 
