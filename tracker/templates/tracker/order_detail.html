@@ -1892,11 +1892,17 @@
         formData.append('delay_reason_text', delayReasonText);
         formData.append('delay_reason_comments', delayReasonComments);
 
+        // Ensure CSRF token is included in FormData
+        const csrfToken = getCSRFToken() || document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '';
+        if (csrfToken) {
+          formData.append('csrfmiddlewaretoken', csrfToken);
+        }
+
         const response = await fetch('{% url "tracker:api_save_delay_reason" pk=order.id %}', {
           method: 'POST',
           body: formData,
           headers: {
-            'X-CSRFToken': getCSRFToken() || document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '',
+            'X-CSRFToken': csrfToken,
             'X-Requested-With': 'XMLHttpRequest'
           }
         });
