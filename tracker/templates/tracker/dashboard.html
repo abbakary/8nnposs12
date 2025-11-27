@@ -308,11 +308,50 @@
         gap: 0.75rem;
         height: 100%;
     }
-    
+
     @media (max-width: 992px) {
         .sub-kpi-grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    /* Revenue view toggle */
+    .revenue-view-toggle {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .toggle-btn {
+        flex: 1;
+        padding: 0.5rem 1rem;
+        border: 2px solid #e9ecef;
+        background: white;
+        color: #6c757d;
+        border-radius: 6px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .toggle-btn:hover {
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    .toggle-btn.active {
+        background: linear-gradient(135deg, #e74c3c 0%, #e67e22 100%);
+        color: white;
+        border-color: transparent;
+    }
+
+    .revenue-view {
+        display: none;
+    }
+
+    .revenue-view.active {
+        display: block;
     }
 </style>
 {% endblock %}
@@ -344,7 +383,7 @@
 <div class="container-fluid mb-4">
     <div class="row g-3">
         <!-- Performance KPIs Card -->
-        <div class="col-xxl-6 col-12">
+        <div class="col-12">
             <div class="card main-kpi-card h-100">
                
                 <div class="main-kpi-body">
@@ -406,64 +445,137 @@
         </div>
 
         <!-- Revenue KPIs Card -->
-        <div class="col-xxl-6 col-12">
+        <div class="col-12">
             <div class="card main-kpi-card h-100">
-               
                 <div class="main-kpi-body">
-                    <div class="sub-kpi-grid">
-                        <!-- Gross Revenue -->
-                        <div class="sub-kpi-card revenue">
-                            <div class="sub-kpi-icon bg-success">
-                                <i class="fa fa-money-bill-wave"></i>
+                    <!-- Revenue View Toggle -->
+                    <div class="revenue-view-toggle">
+                        <button type="button" class="toggle-btn active" data-view="all-time">
+                            <i class="fa fa-history me-1"></i>All Time
+                        </button>
+                        <button type="button" class="toggle-btn" data-view="daily">
+                            <i class="fa fa-calendar-day me-1"></i>Daily
+                        </button>
+                    </div>
+
+                    <!-- All Time Revenue View -->
+                    <div id="all-time-view" class="revenue-view active">
+                        <div class="sub-kpi-grid">
+                            <!-- Gross Revenue -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-success">
+                                    <i class="fa fa-money-bill-wave"></i>
+                                </div>
+                                <div class="sub-kpi-label">GROSS REVENUE</div>
+                                <div class="sub-kpi-value">{{ total_gross_revenue|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    All invoices total
+                                </div>
                             </div>
-                            <div class="sub-kpi-label">GROSS REVENUE</div>
-                            <div class="sub-kpi-value">{{ total_gross_revenue|default:0|floatformat:0|intcomma }} TSH</div>
-                            <div class="sub-kpi-trend trend-up">
-                                <i class="fa fa-arrow-up"></i>
-                                All invoices total
+
+                            <!-- Net Revenue -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-primary">
+                                    <i class="fa fa-receipt"></i>
+                                </div>
+                                <div class="sub-kpi-label">NET REVENUE</div>
+                                <div class="sub-kpi-value">{{ total_net_revenue|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    Subtotal value
+                                </div>
+                            </div>
+
+                            <!-- VAT Total -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-info">
+                                    <i class="fa fa-percent"></i>
+                                </div>
+                                <div class="sub-kpi-label">VAT TOTAL</div>
+                                <div class="sub-kpi-value">{{ total_vat|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    Tax collected
+                                </div>
+                            </div>
+
+                            <!-- Order Type Breakdown (compact) -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-warning">
+                                    <i class="fa fa-chart-pie"></i>
+                                </div>
+                                <div class="sub-kpi-label">REVENUE BREAKDOWN</div>
+                                <div style="font-size: 0.8rem; color: #333; margin: 0.5rem 0;">
+                                    <div><strong>Sales:</strong> {{ revenue_by_type.sales|default:0|floatformat:0|intcomma }}</div>
+                                    <div><strong>Service:</strong> {{ revenue_by_type.service|default:0|floatformat:0|intcomma }}</div>
+                                    <div><strong>Labour:</strong> {{ revenue_by_type.labour|default:0|floatformat:0|intcomma }}</div>
+                                </div>
+                                <div class="sub-kpi-trend trend-neutral">
+                                    <i class="fa fa-chart-bar"></i>
+                                    By category
+                                </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Net Revenue -->
-                        <div class="sub-kpi-card revenue">
-                            <div class="sub-kpi-icon bg-primary">
-                                <i class="fa fa-receipt"></i>
+                    <!-- Daily Revenue View -->
+                    <div id="daily-view" class="revenue-view">
+                        <div class="sub-kpi-grid">
+                            <!-- Daily Gross Revenue -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-success">
+                                    <i class="fa fa-money-bill-wave"></i>
+                                </div>
+                                <div class="sub-kpi-label">GROSS REVENUE</div>
+                                <div class="sub-kpi-value">{{ today_gross_revenue|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    Today's invoices
+                                </div>
                             </div>
-                            <div class="sub-kpi-label">NET REVENUE</div>
-                            <div class="sub-kpi-value">{{ total_net_revenue|default:0|floatformat:0|intcomma }} TSH</div>
-                            <div class="sub-kpi-trend trend-up">
-                                <i class="fa fa-arrow-up"></i>
-                                Subtotal value
-                            </div>
-                        </div>
 
-                        <!-- VAT Total -->
-                        <div class="sub-kpi-card revenue">
-                            <div class="sub-kpi-icon bg-info">
-                                <i class="fa fa-percent"></i>
+                            <!-- Daily Net Revenue -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-primary">
+                                    <i class="fa fa-receipt"></i>
+                                </div>
+                                <div class="sub-kpi-label">NET REVENUE</div>
+                                <div class="sub-kpi-value">{{ today_net_revenue|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    Subtotal value
+                                </div>
                             </div>
-                            <div class="sub-kpi-label">VAT TOTAL</div>
-                            <div class="sub-kpi-value">{{ total_vat|default:0|floatformat:0|intcomma }} TSH</div>
-                            <div class="sub-kpi-trend trend-up">
-                                <i class="fa fa-arrow-up"></i>
-                                Tax collected
-                            </div>
-                        </div>
 
-                        <!-- Order Type Breakdown (compact) -->
-                        <div class="sub-kpi-card revenue">
-                            <div class="sub-kpi-icon bg-warning">
-                                <i class="fa fa-chart-pie"></i>
+                            <!-- Daily VAT Total -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-info">
+                                    <i class="fa fa-percent"></i>
+                                </div>
+                                <div class="sub-kpi-label">VAT TOTAL</div>
+                                <div class="sub-kpi-value">{{ today_vat|default:0|floatformat:0|intcomma }} TSH</div>
+                                <div class="sub-kpi-trend trend-up">
+                                    <i class="fa fa-arrow-up"></i>
+                                    Tax collected
+                                </div>
                             </div>
-                            <div class="sub-kpi-label">REVENUE BREAKDOWN</div>
-                            <div style="font-size: 0.8rem; color: #333; margin: 0.5rem 0;">
-                                <div><strong>Sales:</strong> {{ revenue_by_type.sales|default:0|floatformat:0|intcomma }}</div>
-                                <div><strong>Service:</strong> {{ revenue_by_type.service|default:0|floatformat:0|intcomma }}</div>
-                                <div><strong>Labour:</strong> {{ revenue_by_type.labour|default:0|floatformat:0|intcomma }}</div>
-                            </div>
-                            <div class="sub-kpi-trend trend-neutral">
-                                <i class="fa fa-chart-bar"></i>
-                                By category
+
+                            <!-- Daily Revenue Breakdown (compact) -->
+                            <div class="sub-kpi-card revenue">
+                                <div class="sub-kpi-icon bg-warning">
+                                    <i class="fa fa-chart-pie"></i>
+                                </div>
+                                <div class="sub-kpi-label">REVENUE BREAKDOWN</div>
+                                <div style="font-size: 0.8rem; color: #333; margin: 0.5rem 0;">
+                                    <div><strong>Sales:</strong> {{ revenue_by_type_today.sales|default:0|floatformat:0|intcomma }}</div>
+                                    <div><strong>Service:</strong> {{ revenue_by_type_today.service|default:0|floatformat:0|intcomma }}</div>
+                                    <div><strong>Labour:</strong> {{ revenue_by_type_today.labour|default:0|floatformat:0|intcomma }}</div>
+                                </div>
+                                <div class="sub-kpi-trend trend-neutral">
+                                    <i class="fa fa-chart-bar"></i>
+                                    By category
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -854,6 +966,36 @@
 <script>
 (function(){
   document.addEventListener('DOMContentLoaded', function(){
+    // Revenue View Toggle Functionality
+    var toggleButtons = document.querySelectorAll('.toggle-btn');
+    var allTimeView = document.getElementById('all-time-view');
+    var dailyView = document.getElementById('daily-view');
+
+    toggleButtons.forEach(function(button){
+      button.addEventListener('click', function(){
+        var view = this.getAttribute('data-view');
+
+        // Remove active class from all buttons
+        toggleButtons.forEach(function(btn){
+          btn.classList.remove('active');
+        });
+
+        // Add active class to clicked button
+        this.classList.add('active');
+
+        // Hide all views
+        allTimeView.classList.remove('active');
+        dailyView.classList.remove('active');
+
+        // Show selected view
+        if(view === 'all-time'){
+          allTimeView.classList.add('active');
+        } else if(view === 'daily'){
+          dailyView.classList.add('active');
+        }
+      });
+    });
+
     // Progress bars init (existing)
     document.querySelectorAll('.progress-bar[data-width]').forEach(function(bar){
       var width = bar.dataset.width;

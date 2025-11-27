@@ -631,7 +631,32 @@ def api_create_invoice_from_upload(request):
             
             # Create new invoice for this upload
             posted_inv_number = (request.POST.get('invoice_number') or '').strip()
-            inv = Invoice()
+
+            # Check if an invoice with this number already exists
+            existing_invoice = None
+            if posted_inv_number:
+                try:
+                    existing_invoice = Invoice.objects.get(invoice_number=posted_inv_number)
+                except Invoice.DoesNotExist:
+                    existing_invoice = None
+
+            # Decide whether to update existing invoice or create new one
+            if existing_invoice:
+                # Invoice with this number already exists
+                if existing_invoice.order_id == order.id if order else False:
+                    # Same order - update the existing invoice with new data
+                    inv = existing_invoice
+                    logger.info(f"Updating existing invoice {existing_invoice.id} with number {posted_inv_number} for order {order.id}")
+                else:
+                    # Different order or no order - generate a new unique invoice number
+                    inv = Invoice()
+                    # Generate unique number instead of using duplicate
+                    inv.generate_invoice_number()
+                    logger.warning(f"Invoice number {posted_inv_number} already exists for different order. Generated new number: {inv.invoice_number}")
+            else:
+                # No existing invoice - create new one
+                inv = Invoice()
+
             inv.branch = order.branch if order and getattr(order, 'branch', None) else user_branch
             inv.order = order
             inv.customer = customer_obj
@@ -726,9 +751,9 @@ def api_create_invoice_from_upload(request):
             inv.total_amount = total_amount or (subtotal + tax_amount)
             inv.created_by = request.user
 
-            if not getattr(inv, 'invoice_number', None):
-                # Use posted invoice number if available, otherwise generate one
-                if posted_inv_number:
+            # Set invoice_number if not already set (for newly created invoices)
+            if not getattr(inv, 'invoice_number', None) or not inv.invoice_number:
+                if posted_inv_number and not existing_invoice:
                     inv.invoice_number = posted_inv_number
                 else:
                     inv.generate_invoice_number()

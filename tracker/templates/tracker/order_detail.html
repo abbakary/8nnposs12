@@ -1275,7 +1275,7 @@
 
                 <!-- Specific Reason Dropdown -->
                 <div class="mb-2">
-                  <label class="form-label text-muted small">Specific Reason</label>
+                  <label class="form-label text-muted small">Specific Reason <span id="reasonRequiredBadge" class="badge bg-danger ms-2" style="display:none;">Required</span></label>
                   <select id="delayReasonDropdown" name="delay_reason" class="form-select">
                     <option value="">-- Select Specific Reason --</option>
                     {% if delay_reasons_by_category and delay_reasons_by_category.parts %}
@@ -1289,6 +1289,10 @@
                       <option value="4">Need for special-order parts (rare or imported)</option>
                     {% endif %}
                   </select>
+                  <div id="selectedReasonDisplay" class="alert alert-info mt-2" style="display:none;">
+                    <i class="fa fa-check-circle me-2"></i>
+                    <strong>Selected:</strong> <span id="selectedReasonText"></span>
+                  </div>
                 </div>
 
                 <!-- Custom Comments -->
@@ -1376,15 +1380,8 @@
   const completionModalEl = document.getElementById('completeModal');
   if (completionModalEl && delayReasonCategory) {
     completionModalEl.addEventListener('shown.bs.modal', function() {
-      // If dropdown has no options besides placeholder, populate now
-      const hasOnlyPlaceholder = delayReasonDropdown && delayReasonDropdown.options && delayReasonDropdown.options.length <= 1;
-      if (hasOnlyPlaceholder) {
-        if (!delayReasonCategory.value) {
-          const firstCategoryOption = delayReasonCategory.querySelector('option[value]:not([value=""])');
-          if (firstCategoryOption) delayReasonCategory.value = firstCategoryOption.value;
-        }
-        if (delayReasonCategory.value) populateReasons(delayReasonCategory.value);
-      }
+      // Re-initialize delay reason fields when modal is shown
+      initializeDelayReasonFields();
     });
   }
 
@@ -1430,8 +1427,25 @@
   });
 
   // Attach handlers to buttons inside signature modal
-  if (footerBtn) footerBtn.addEventListener('click', ensureAndSubmit);
-  if (signAndCompleteBtn) signAndCompleteBtn.addEventListener('click', ensureAndSubmit);
+  const exceeds9HoursCheck = {{ exceeds_9_hours|lower }};
+  const delayReasonDropdownRef = document.getElementById('delayReasonDropdown');
+
+  function handleFooterButtonClick(e) {
+    e.preventDefault();
+    // Check if delay reason is required and validate
+    if (exceeds9HoursCheck && delayReasonDropdownRef) {
+      const selectedReason = delayReasonDropdownRef.value;
+      if (!selectedReason) {
+        alert('Please select a delay reason before completing this order. This order exceeded 9 working hours.');
+        return false;
+      }
+    }
+
+    ensureAndSubmit();
+  }
+
+  if (footerBtn) footerBtn.addEventListener('click', handleFooterButtonClick);
+  if (signAndCompleteBtn) signAndCompleteBtn.addEventListener('click', handleFooterButtonClick);
 
   if (overrunModal && document.getElementById('completeOverrunSave')){
     document.getElementById('completeOverrunSave').addEventListener('click', function(){
@@ -1569,45 +1583,56 @@
       const selectedReason = delayReasonDropdown.value;
       if (!selectedReason) {
         e.preventDefault();
-        alert('Please select a delay reason before completing this order.');
+        e.stopPropagation();
+        alert('Please select a delay reason before completing this order. This order exceeded 9 working hours.');
+        // Switch to details tab to show the delay reason field
+        const detailsTab = document.getElementById('detailsTab');
+        if (detailsTab) detailsTab.click();
         return false;
       }
-    });
-  }
-
-  // Also validate when clicking footer button
-  if (footerSignAndComplete && exceeds9Hours) {
-    const originalListener = footerSignAndComplete.onclick;
-    footerSignAndComplete.addEventListener('click', function(e) {
-      const selectedReason = delayReasonDropdown.value;
-      if (!selectedReason) {
-        e.preventDefault();
-        alert('Please select a delay reason before completing this order.');
-        return false;
-      }
-    });
+    }, true); // Use capture phase to ensure this runs before form submission
   }
 
   // Initialize UI on page load
   updateDelayReasonUI();
 
   // Initialize Specific Reason dropdown on load
-  if (delayReasonCategory) {
-    // If no category selected, pick the first non-empty option
-    if (!delayReasonCategory.value) {
-      const firstCategoryOption = delayReasonCategory.querySelector('option[value]:not([value=""])');
-      if (firstCategoryOption) {
-        delayReasonCategory.value = firstCategoryOption.value;
+  function initializeDelayReasonFields() {
+    if (delayReasonCategory) {
+      // If no category selected, pick the first non-empty option
+      if (!delayReasonCategory.value) {
+        const firstCategoryOption = delayReasonCategory.querySelector('option[value]:not([value=""])');
+        if (firstCategoryOption) {
+          delayReasonCategory.value = firstCategoryOption.value;
+        }
+      }
+      if (delayReasonCategory.value) {
+        populateReasons(delayReasonCategory.value);
+        // Auto-select first specific reason if none selected
+        if (delayReasonDropdown && (!delayReasonDropdown.value || delayReasonDropdown.value === '') && delayReasonDropdown.options.length > 1) {
+          delayReasonDropdown.selectedIndex = 1;
+        }
       }
     }
-    if (delayReasonCategory.value) {
-      populateReasons(delayReasonCategory.value);
-      // Auto-select first specific reason if none selected
-      if (delayReasonDropdown && (!delayReasonDropdown.value || delayReasonDropdown.value === '') && delayReasonDropdown.options.length > 1) {
-        delayReasonDropdown.selectedIndex = 1;
+    // Sync hidden text field and display selected reason
+    if (delayReasonDropdown && delayReasonDropdown.selectedIndex > 0) {
+      const hidden = document.getElementById('delayReasonTextHidden');
+      const txt = delayReasonDropdown.options[delayReasonDropdown.selectedIndex].text;
+      if (hidden) hidden.value = txt;
+
+      // Show selected reason display
+      const selectedDisplay = document.getElementById('selectedReasonDisplay');
+      const selectedText = document.getElementById('selectedReasonText');
+      if (delayReasonDropdown.value && txt) {
+        if (selectedDisplay) {
+          selectedText.textContent = txt;
+          selectedDisplay.style.display = 'block';
+        }
       }
     }
   }
+
+  initializeDelayReasonFields();
 
   // Absolute fallback: derive first available category from the data map
   if (delayReasonDropdown && delayReasonDropdown.options.length <= 1) {
@@ -1628,25 +1653,43 @@
     }
   }
 
-  // Set delay reason data attribute on form for server-side handling
+  // Ensure delay reason text is synced on form submission for server fallback
   if (delayReasonDropdown && completeForm) {
     completeForm.addEventListener('submit', function() {
       // Persist the selected reason's text for server fallback
       const sel = delayReasonDropdown;
-      const txt = sel && sel.options && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '';
-      const hidden = document.getElementById('delayReasonTextHidden');
-      if (hidden) hidden.value = txt;
+      const reasonText = sel && sel.options && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '';
+      const hiddenText = document.getElementById('delayReasonTextHidden');
+      if (hiddenText) hiddenText.value = reasonText;
     });
   }
 
-  // Keep hidden text in sync when user changes selection
+  // Keep hidden text in sync when user changes selection and show selected reason
   if (delayReasonDropdown) {
     delayReasonDropdown.addEventListener('change', function(){
       const hidden = document.getElementById('delayReasonTextHidden');
       const sel = delayReasonDropdown;
       const txt = sel && sel.options && sel.selectedIndex > 0 ? sel.options[sel.selectedIndex].text : '';
       if (hidden) hidden.value = txt;
+
+      // Show/hide selected reason display
+      const selectedDisplay = document.getElementById('selectedReasonDisplay');
+      const selectedText = document.getElementById('selectedReasonText');
+      if (sel.value && txt) {
+        if (selectedDisplay) {
+          selectedText.textContent = txt;
+          selectedDisplay.style.display = 'block';
+        }
+      } else {
+        if (selectedDisplay) selectedDisplay.style.display = 'none';
+      }
     });
+  }
+
+  // Show required badge when exceeds 9 hours
+  if (exceeds9Hours) {
+    const requiredBadge = document.getElementById('reasonRequiredBadge');
+    if (requiredBadge) requiredBadge.style.display = 'inline-block';
   }
 })();
 </script>
