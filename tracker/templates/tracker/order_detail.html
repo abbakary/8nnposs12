@@ -1714,13 +1714,18 @@
         // Show/hide selected reason display
         if (sel.value && txt && els.selectedDisplay) {
           if (els.selectedText) els.selectedText.textContent = txt;
-          selectedDisplay.style.display = 'block';
+          els.selectedDisplay.style.display = 'block';
         }
       } else {
-        if (selectedDisplay) selectedDisplay.style.display = 'none';
+        if (els.selectedDisplay) els.selectedDisplay.style.display = 'none';
       }
-    });
+      });
+      els.dropdown.dataset.changeListenerAttached = 'true';
+    }
   }
+
+  // Attach the dropdown change listener
+  attachDelayReasonDropdownListener();
 
   // Show required badge when exceeds 9 hours
   if (exceeds9Hours) {
