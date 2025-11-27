@@ -1568,34 +1568,42 @@
 
   // Initialize visibility and requirement
   function updateDelayReasonUI() {
-    if (exceeds9Hours) {
-      delayReasonRequired.style.display = 'inline';
-      delayReasonOptionalText.style.display = 'none';
-      delayReasonSection.classList.add('border', 'border-danger', 'bg-danger', 'bg-opacity-10', 'p-3', 'rounded');
-      delayReasonHelpText.textContent = 'This order exceeded 9 working hours. You must select a delay reason.';
+    const els = getDelayReasonElements();
+    if (exceeds9Hours && els.section) {
+      if (els.required) els.required.style.display = 'inline';
+      if (els.optional) els.optional.style.display = 'none';
+      if (els.section) els.section.classList.add('border', 'border-danger', 'bg-danger', 'bg-opacity-10', 'p-3', 'rounded');
+      if (els.helpText) els.helpText.textContent = 'This order exceeded 9 working hours. You must select a delay reason.';
     }
   }
 
   // Populate specific reasons based on category
   function populateReasons(category) {
-    delayReasonDropdown.innerHTML = '<option value="">-- Select Specific Reason --</option>';
+    const els = getDelayReasonElements();
+    if (!els.dropdown) return;
+    els.dropdown.innerHTML = '<option value="">-- Select Specific Reason --</option>';
     if (category && delayReasonsByCategoryJson[category]) {
       delayReasonsByCategoryJson[category].forEach(function(reason) {
         const option = document.createElement('option');
         option.value = reason.id;
         option.textContent = reason.reason_text;
-        delayReasonDropdown.appendChild(option);
+        els.dropdown.appendChild(option);
       });
     }
   }
 
   // Event listeners
-  if (delayReasonCategory) {
-    delayReasonCategory.addEventListener('change', function() {
-      populateReasons(this.value);
-      // Clear the dropdown selection when category changes
-      delayReasonDropdown.value = '';
-    });
+  function attachDelayReasonEventListeners() {
+    const els = getDelayReasonElements();
+    if (els.category && !els.category.dataset.listenerAttached) {
+      els.category.addEventListener('change', function() {
+        populateReasons(this.value);
+        // Clear the dropdown selection when category changes
+        const dropdownEl = document.getElementById('delayReasonDropdown');
+        if (dropdownEl) dropdownEl.value = '';
+      });
+      els.category.dataset.listenerAttached = 'true';
+    }
   }
 
   // Validate delay reason on form submission
