@@ -1555,7 +1555,16 @@
                 </button>
               </div>\n            </div>\n          </div>\n        </div>\n      `;
 
-      // Remove any existing alert modal\n      const existingModal = document.getElementById('delayExceededAlertModal');\n      if (existingModal) existingModal.remove();\n      \n      // Add the new modal to the page\n      document.body.insertAdjacentHTML('beforeend', alertHtml);\n      \n      // Show the modal\n      const delayAlertModal = new bootstrap.Modal(document.getElementById('delayExceededAlertModal'));\n      delayAlertModal.show();\n    }\n  }\n\n  if (overrunModal && document.getElementById('completeOverrunSave')){
+      // Remove any existing alert modal
+      const existingModal = document.getElementById('delayExceededAlertModal');
+      if (existingModal) existingModal.remove();
+
+      // Add the new modal to the page
+      document.body.insertAdjacentHTML('beforeend', alertHtml);
+
+      // Show the modal
+      const delayAlertModal = new bootstrap.Modal(document.getElementById('delayExceededAlertModal'));
+      delayAlertModal.show();\n    }\n  }\n\n  if (overrunModal && document.getElementById('completeOverrunSave')){
     document.getElementById('completeOverrunSave').addEventListener('click', function(){
       const v = (overrunTextarea.value||'').trim();
       overrunError.style.display = 'none';
