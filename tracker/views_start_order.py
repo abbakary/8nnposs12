@@ -483,14 +483,89 @@ def started_order_detail(request, order_id):
 
         
         elif action == 'complete_order':
+            # Handle delay reason before completing
+            try:
+                from .utils.time_utils import is_order_overdue
+                from .models import DelayReason
+                exceeds_9_hours = False
+                if order.started_at:
+                    exceeds_9_hours = is_order_overdue(order.started_at) if order.status == 'in_progress' else (
+                        order.actual_duration and order.actual_duration >= (9 * 60)
+                    )
+
+                # Check if delay reason is required
+                if exceeds_9_hours:
+                    delay_reason_id = request.POST.get('delay_reason')
+                    if not delay_reason_id:
+                        messages.error(request, 'Order has exceeded 9 working hours. Please select a delay reason before completing.')
+                        return redirect('tracker:started_order_detail', order_id=order.id)
+
+                    try:
+                        delay_reason = DelayReason.objects.get(id=delay_reason_id)
+                        order.delay_reason = delay_reason
+                        order.delay_reason_reported_at = timezone.now()
+                        order.delay_reason_reported_by = request.user
+                        order.exceeded_9_hours = True
+                    except DelayReason.DoesNotExist:
+                        messages.error(request, 'Selected delay reason not found. Please select a valid reason.')
+                        return redirect('tracker:started_order_detail', order_id=order.id)
+                else:
+                    # For orders not exceeding 9 hours, save optional delay reason if provided
+                    delay_reason_id = request.POST.get('delay_reason')
+                    if delay_reason_id:
+                        try:
+                            delay_reason = DelayReason.objects.get(id=delay_reason_id)
+                            order.delay_reason = delay_reason
+                            order.delay_reason_reported_at = timezone.now()
+                            order.delay_reason_reported_by = request.user
+                        except DelayReason.DoesNotExist:
+                            logger.warning(f"Optional delay reason ID {delay_reason_id} not found for order {order.id}")
+
+                # Save optional comments
+                comments = (request.POST.get('delay_reason_comments') or '').strip()
+                if comments:
+                    order.overrun_reason = comments
+                    order.overrun_reported_at = order.overrun_reported_at or timezone.now()
+                    order.overrun_reported_by = order.overrun_reported_by or request.user
+
+            except Exception as e:
+                logger.error(f"Error handling delay reason for order {order.id}: {e}")
+                messages.error(request, f'Error processing delay reason: {str(e)}')
+                return redirect('tracker:started_order_detail', order_id=order.id)
+
             # Mark order as completed
             order.status = 'completed'
             order.completed_at = timezone.now()
             order.save()
-            
+
+            messages.success(request, 'Order completed successfully.')
             return redirect('tracker:started_orders_dashboard')
     
     active_tab = request.GET.get('tab', 'overview')
+
+    # Check if order exceeds 9+ working hours
+    exceeds_9_hours = False
+    if order.started_at:
+        try:
+            from .utils.time_utils import is_order_overdue
+            exceeds_9_hours = is_order_overdue(order.started_at) if order.status == 'in_progress' else (
+                order.actual_duration and order.actual_duration >= (9 * 60)  # 9 hours in minutes
+            )
+        except Exception:
+            exceeds_9_hours = False
+
+    # Fetch delay reason categories and reasons for template rendering
+    delay_reasons_by_category = {}
+    try:
+        from .models import DelayReasonCategory, DelayReason
+        for category in DelayReasonCategory.objects.filter(is_active=True):
+            reasons = list(DelayReason.objects.filter(category=category, is_active=True).values('id', 'reason_text'))
+            delay_reasons_by_category[category.category] = reasons
+        # Convert to JSON string for template
+        import json
+        delay_reasons_for_template = json.dumps(delay_reasons_by_category)
+    except Exception:
+        delay_reasons_for_template = delay_reasons_by_category
 
     context = {
         'order': order,
@@ -501,8 +576,11 @@ def started_order_detail(request, order_id):
         'branch_mismatch': branch_mismatch,
         'user_branch': user_branch,
         'is_admin': is_admin,
+        'exceeds_9_hours': exceeds_9_hours,
+        'delay_reason_categories': [],
+        'delay_reasons_by_category': delay_reasons_for_template,
     }
-    
+
     return render(request, 'tracker/started_order_detail.html', context)
 
 
