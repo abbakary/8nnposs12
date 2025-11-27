@@ -503,6 +503,36 @@ def dashboard(request: HttpRequest):
             if month_gross_sums.get('month_count') is not None:
                 invoices_this_month_count = month_gross_sums.get('month_count')
 
+            # Daily revenue calculations (today's invoices)
+            today_date = timezone.localdate()
+            today_start_datetime = timezone.make_aware(datetime.combine(today_date, datetime.min.time()))
+            today_end_datetime = timezone.make_aware(datetime.combine(today_date, datetime.max.time()))
+
+            today_invoices = invoices_qs.filter(
+                created_at__gte=today_start_datetime,
+                created_at__lte=today_end_datetime
+            )
+
+            # Calculate gross revenue today
+            today_gross_revenue = Decimal('0')
+            today_net_revenue = Decimal('0')
+            today_vat = Decimal('0')
+
+            today_gross_sums = today_invoices.aggregate(
+                today_gross=Sum('total_amount'),
+                today_net=Sum('subtotal'),
+                today_vat_sum=Sum('tax_amount')
+            )
+
+            if today_gross_sums.get('today_gross') is not None:
+                today_gross_revenue = Decimal(str(today_gross_sums.get('today_gross')))
+
+            if today_gross_sums.get('today_net') is not None:
+                today_net_revenue = Decimal(str(today_gross_sums.get('today_net')))
+
+            if today_gross_sums.get('today_vat_sum') is not None:
+                today_vat = Decimal(str(today_gross_sums.get('today_vat_sum')))
+
             # Revenue by branch (Gross Value)
             branch_sums = invoices_qs.values('branch__name').annotate(
                 total=Sum('total_amount')
@@ -528,6 +558,7 @@ def dashboard(request: HttpRequest):
         # Revenue breakdown by order type
         revenue_by_type = {}
         revenue_by_type_this_month = {}
+        revenue_by_type_today = {}
         try:
             from tracker.utils.revenue_utils import get_revenue_by_order_type
 
@@ -536,6 +567,9 @@ def dashboard(request: HttpRequest):
 
             # This month's revenue by type
             revenue_by_type_this_month = get_revenue_by_order_type(month_invoices)
+
+            # Today's revenue by type
+            revenue_by_type_today = get_revenue_by_order_type(today_invoices)
         except Exception as e:
             logger.warning(f"Error calculating revenue by order type: {e}")
             revenue_by_type = {
@@ -547,6 +581,14 @@ def dashboard(request: HttpRequest):
                 'count': 0,
             }
             revenue_by_type_this_month = {
+                'sales': Decimal('0'),
+                'service': Decimal('0'),
+                'labour': Decimal('0'),
+                'unknown': Decimal('0'),
+                'total': Decimal('0'),
+                'count': 0,
+            }
+            revenue_by_type_today = {
                 'sales': Decimal('0'),
                 'service': Decimal('0'),
                 'labour': Decimal('0'),
@@ -577,10 +619,15 @@ def dashboard(request: HttpRequest):
             'total_vat': total_vat,                                    # Total VAT (all time)
             'avg_invoice_amount': avg_invoice_amount,                  # Average invoice amount
             'invoices_this_month_count': invoices_this_month_count,    # Number of invoices this month
+            # Daily revenue KPIs
+            'today_gross_revenue': today_gross_revenue,                # Gross revenue today
+            'today_net_revenue': today_net_revenue,                    # Net revenue today
+            'today_vat': today_vat,                                    # VAT today
             'revenue_by_branch_tsh': revenue_by_branch_tsh,
             # Revenue breakdown by order type
             'revenue_by_type': revenue_by_type,
             'revenue_by_type_this_month': revenue_by_type_this_month,
+            'revenue_by_type_today': revenue_by_type_today,
             'upcoming_appointments': list(upcoming_appointments.values('id', 'customer__full_name', 'created_at')),
             'top_customers': list(top_customers.values('id', 'full_name', 'order_count', 'phone', 'email', 'total_spent', 'latest_order_date', 'registration_date')),
             'recent_orders': list(orders_qs.select_related("customer").exclude(status="completed").order_by("-created_at").values('id', 'customer__full_name', 'status', 'created_at')[:10]),

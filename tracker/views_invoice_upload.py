@@ -629,25 +629,9 @@ def api_create_invoice_from_upload(request):
                     logger.info(f"Updated order {order.id} vehicle to {vehicle.id}")
                 _save_with_retry(order, update_fields=['customer', 'vehicle'] if vehicle else ['customer'])
             
-            # Create or reuse invoice (enforce one invoice per order unless additional)
-            inv_link_reason = (request.POST.get('invoice_link_reason') or '').strip()
-            is_additional = bool(inv_link_reason)
+            # Create new invoice for this upload
             posted_inv_number = (request.POST.get('invoice_number') or '').strip()
-            inv = None
-            # IMPORTANT: For additional invoices, always create a NEW internal invoice record
-            # Do NOT reuse by posted external invoice number to avoid overwriting/merging
-            if not is_additional and posted_inv_number:
-                try:
-                    inv = Invoice.objects.filter(invoice_number=posted_inv_number).first()
-                except Exception:
-                    inv = None
-            if not inv and order and not is_additional:
-                try:
-                    inv = Invoice.objects.filter(order=order).first()
-                except Exception:
-                    inv = None
-            if inv is None:
-                inv = Invoice()
+            inv = Invoice()
             inv.branch = order.branch if order and getattr(order, 'branch', None) else user_branch
             inv.order = order
             inv.customer = customer_obj
@@ -743,15 +727,11 @@ def api_create_invoice_from_upload(request):
             inv.created_by = request.user
 
             if not getattr(inv, 'invoice_number', None):
-                # For additional invoices, always generate a unique internal invoice number
-                if is_additional:
-                    inv.generate_invoice_number()
+                # Use posted invoice number if available, otherwise generate one
+                if posted_inv_number:
+                    inv.invoice_number = posted_inv_number
                 else:
-                    # Use posted invoice number if present for primary flow
-                    if posted_inv_number:
-                        inv.invoice_number = posted_inv_number
-                    else:
-                        inv.generate_invoice_number()
+                    inv.generate_invoice_number()
 
             # Save invoice (function-level retry will handle database locks)
             inv.save()
@@ -1020,24 +1000,6 @@ def api_create_invoice_from_upload(request):
                 except Exception as e:
                     logger.warning(f"Failed to create or get payment record: {e}")
             
-            # Create OrderInvoiceLink if a reason is provided for additional invoice
-            invoice_link_reason = inv_link_reason
-            if invoice_link_reason and order:
-                try:
-                    from .models import OrderInvoiceLink
-                    OrderInvoiceLink.objects.get_or_create(
-                        order=order,
-                        invoice=inv,
-                        defaults={
-                            'reason': invoice_link_reason,
-                            'linked_by': request.user,
-                            'is_primary': False
-                        }
-                    )
-                    logger.info(f"Linked additional invoice {inv.id} to order {order.id} with reason: {invoice_link_reason}")
-                except Exception as e:
-                    logger.warning(f"Failed to create OrderInvoiceLink for additional invoice: {e}")
-
             # Update started order with invoice data
             try:
                 order = OrderService.update_order_from_invoice(
