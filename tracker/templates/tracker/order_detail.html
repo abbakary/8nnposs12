@@ -1857,6 +1857,91 @@
     const requiredBadge = document.getElementById('reasonRequiredBadge');
     if (requiredBadge) requiredBadge.style.display = 'inline-block';
   }
+
+  // Handle Save Delay Reason button click
+  const saveDelayReasonBtn = document.getElementById('saveDelayReasonBtn');
+  const saveDelayReasonLoadingBtn = document.getElementById('saveDelayReasonLoadingBtn');
+  const delayReasonSaveMessage = document.getElementById('delayReasonSaveMessage');
+  const delayReasonSaveText = document.getElementById('delayReasonSaveText');
+
+  if (saveDelayReasonBtn) {
+    saveDelayReasonBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+
+      const els = getDelayReasonElements();
+      const delayReasonId = els.dropdown ? els.dropdown.value : '';
+      const delayReasonCategory = els.category ? els.category.value : '';
+      const delayReasonText = els.dropdown && els.dropdown.selectedIndex > 0 ? els.dropdown.options[els.dropdown.selectedIndex].text : '';
+      const delayReasonComments = els.comments ? els.comments.value : '';
+
+      // Validate that a reason is selected
+      if (!delayReasonId) {
+        alert('Please select a delay reason before saving.');
+        return;
+      }
+
+      // Show loading state
+      saveDelayReasonBtn.style.display = 'none';
+      saveDelayReasonLoadingBtn.style.display = 'inline-block';
+      delayReasonSaveMessage.style.display = 'none';
+
+      try {
+        const formData = new FormData();
+        formData.append('delay_reason_id', delayReasonId);
+        formData.append('delay_reason_category', delayReasonCategory);
+        formData.append('delay_reason_text', delayReasonText);
+        formData.append('delay_reason_comments', delayReasonComments);
+
+        const response = await fetch('{% url "tracker:api_save_delay_reason" pk=order.id %}', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'X-CSRFToken': getCSRFToken() || document.querySelector('[name="csrfmiddlewaretoken"]')?.value || '',
+            'X-Requested-With': 'XMLHttpRequest'
+          }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          // Show success message
+          delayReasonSaveText.textContent = data.message || 'Delay reason saved successfully!';
+          delayReasonSaveMessage.className = 'alert alert-success';
+          delayReasonSaveMessage.innerHTML = '<i class="fa fa-check-circle me-2"></i>' + (data.message || 'Delay reason saved successfully!');
+          delayReasonSaveMessage.style.display = 'block';
+
+          // Reset button state after 2 seconds
+          setTimeout(() => {
+            saveDelayReasonBtn.style.display = 'inline-block';
+            saveDelayReasonLoadingBtn.style.display = 'none';
+          }, 2000);
+
+          // Auto-hide success message after 5 seconds
+          setTimeout(() => {
+            delayReasonSaveMessage.style.display = 'none';
+          }, 5000);
+        } else {
+          // Show error message
+          delayReasonSaveMessage.className = 'alert alert-danger';
+          delayReasonSaveMessage.innerHTML = '<i class="fa fa-exclamation-circle me-2"></i>' + (data.message || 'Failed to save delay reason.');
+          delayReasonSaveMessage.style.display = 'block';
+
+          // Reset button state
+          saveDelayReasonBtn.style.display = 'inline-block';
+          saveDelayReasonLoadingBtn.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Error saving delay reason:', error);
+        delayReasonSaveMessage.className = 'alert alert-danger';
+        delayReasonSaveMessage.innerHTML = '<i class="fa fa-exclamation-circle me-2"></i>Error: ' + error.message;
+        delayReasonSaveMessage.style.display = 'block';
+
+        // Reset button state
+        saveDelayReasonBtn.style.display = 'inline-block';
+        saveDelayReasonLoadingBtn.style.display = 'none';
+      }
+    });
+  }
 })();
 </script>
 
