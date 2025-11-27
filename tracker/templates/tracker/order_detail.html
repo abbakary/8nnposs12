@@ -1376,15 +1376,8 @@
   const completionModalEl = document.getElementById('completeModal');
   if (completionModalEl && delayReasonCategory) {
     completionModalEl.addEventListener('shown.bs.modal', function() {
-      // If dropdown has no options besides placeholder, populate now
-      const hasOnlyPlaceholder = delayReasonDropdown && delayReasonDropdown.options && delayReasonDropdown.options.length <= 1;
-      if (hasOnlyPlaceholder) {
-        if (!delayReasonCategory.value) {
-          const firstCategoryOption = delayReasonCategory.querySelector('option[value]:not([value=""])');
-          if (firstCategoryOption) delayReasonCategory.value = firstCategoryOption.value;
-        }
-        if (delayReasonCategory.value) populateReasons(delayReasonCategory.value);
-      }
+      // Re-initialize delay reason fields when modal is shown
+      initializeDelayReasonFields();
     });
   }
 
