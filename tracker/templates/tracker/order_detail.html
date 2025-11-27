@@ -5982,21 +5982,42 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Function to dynamically add invoice to the page
-    function addInvoiceToPage(invoiceId, invoiceNumber, data) {
+    async function addInvoiceToPage(invoiceId, invoiceNumber, data) {
       const additionalInvoicesList = document.getElementById('additionalInvoicesList');
       const additionalInvoicesSection = document.getElementById('additionalInvoicesSection');
+
+      try {
+        // Fetch invoice details from the API
+        const invoiceDetailResponse = await fetch(`/invoices/${invoiceId}/api/`, {
+          method: 'GET',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCSRF()
+          }
+        });
+
+        let invoiceData = {};
+        if (invoiceDetailResponse.ok) {
+          invoiceData = await invoiceDetailResponse.json();
+        }
+      } catch (error) {
+        console.warn('Could not fetch invoice details, using basic info', error);
+      }
 
       // Create the invoice card HTML
       const invoiceCard = document.createElement('div');
       invoiceCard.className = 'row g-3 mb-4 additional-invoice-card';
       invoiceCard.setAttribute('data-invoice-id', invoiceId);
 
-      // Get extracted header data for display
-      const header = data.header || {};
-      const items = data.items || [];
+      // Use the invoice number from response
+      const invoiceDate = invoiceData.invoice_date ? new Date(invoiceData.invoice_date).toLocaleDateString('en-GB') : 'N/A';
+      const subtotal = invoiceData.subtotal ? parseFloat(invoiceData.subtotal) : 0;
+      const taxAmount = invoiceData.tax_amount ? parseFloat(invoiceData.tax_amount) : 0;
+      const totalAmount = invoiceData.total_amount ? parseFloat(invoiceData.total_amount) : 0;
+      const lineItems = invoiceData.line_items || [];
 
       let lineItemsHtml = '';
-      if (items.length > 0) {
+      if (lineItems.length > 0) {
         lineItemsHtml = `
           <div class="row g-3 mb-4">
             <div class="col-12">
@@ -6018,7 +6039,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                   </thead>
                   <tbody>
-                    ${items.map((item, idx) => {
+                    ${lineItems.map((item, idx) => {
                       const typeBadge = (function(){
                         const ot = String(item.order_type||'sales');
                         if (ot === 'labour') return '<span class="badge bg-info"><i class="fa fa-tools me-1"></i>Labour</span>';
@@ -6034,9 +6055,9 @@ document.addEventListener('DOMContentLoaded', function() {
                           </td>
                           <td class="col-line-item-type" style="text-align: center;"><small>${typeBadge}</small></td>
                           <td class="col-line-item-unit"><small class="text-muted">${item.unit || '-'}</small></td>
-                          <td class="col-line-item-qty" style="text-align: center;"><small class="fw-semibold">${item.qty || 0}</small></td>
-                          <td class="col-line-item-rate" style="text-align: right;"><small>${formatCurrency(item.rate || 0)}</small></td>
-                          <td class="col-line-item-total" style="text-align: right;"><small><strong class="text-success">${formatCurrency(item.value || 0)}</strong></small></td>
+                          <td class="col-line-item-qty" style="text-align: center;"><small class="fw-semibold">${item.quantity || 0}</small></td>
+                          <td class="col-line-item-rate" style="text-align: right;"><small>${formatCurrency(item.unit_price || 0)}</small></td>
+                          <td class="col-line-item-total" style="text-align: right;"><small><strong class="text-success">${formatCurrency(item.line_total || 0)}</strong></small></td>
                         </tr>
                       `;
                     }).join('')}
@@ -6055,7 +6076,7 @@ document.addEventListener('DOMContentLoaded', function() {
               <div>
                 <span class="badge bg-secondary">ADDITIONAL INVOICE</span>
                 <h6 class="mt-2 mb-1">${invoiceNumber}</h6>
-                <small class="text-muted">${header.date || 'N/A'}</small>
+                <small class="text-muted">${invoiceDate}</small>
               </div>
               <div class="d-flex gap-2">
                 <a href="/invoices/${invoiceId}/" class="btn btn-sm btn-outline-secondary" title="View invoice details"><i class="fa fa-eye"></i></a>
@@ -6064,15 +6085,15 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="row g-2 mt-3">
               <div class="col-md-4" style="color: #6c757d;">
                 <small class="text-muted d-block">Subtotal (NET)</small>
-                <div class="fw-bold">${formatCurrency(header.subtotal || 0)}</div>
+                <div class="fw-bold">${formatCurrency(subtotal)}</div>
               </div>
               <div class="col-md-4">
                 <small class="text-muted d-block">Tax/VAT</small>
-                <div class="fw-bold text-warning">${formatCurrency(header.tax || 0)}</div>
+                <div class="fw-bold text-warning">${formatCurrency(taxAmount)}</div>
               </div>
               <div class="col-md-4">
                 <small class="text-muted d-block">Total Amount (GROSS)</small>
-                <div class="fw-bold text-success fs-5">${formatCurrency(header.total || 0)}</div>
+                <div class="fw-bold text-success fs-5">${formatCurrency(totalAmount)}</div>
               </div>
             </div>
           </div>
@@ -6087,11 +6108,6 @@ document.addEventListener('DOMContentLoaded', function() {
       // Add to the list or create section if it doesn't exist
       if (additionalInvoicesList) {
         additionalInvoicesList.appendChild(invoiceCard);
-      } else {
-        // If the section doesn't exist, show the additional invoices section
-        if (additionalInvoicesSection) {
-          additionalInvoicesSection.style.display = 'block';
-        }
       }
 
       // Show the section if it was hidden
