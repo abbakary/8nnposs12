@@ -727,15 +727,11 @@ def api_create_invoice_from_upload(request):
             inv.created_by = request.user
 
             if not getattr(inv, 'invoice_number', None):
-                # For additional invoices, always generate a unique internal invoice number
-                if is_additional:
-                    inv.generate_invoice_number()
+                # Use posted invoice number if available, otherwise generate one
+                if posted_inv_number:
+                    inv.invoice_number = posted_inv_number
                 else:
-                    # Use posted invoice number if present for primary flow
-                    if posted_inv_number:
-                        inv.invoice_number = posted_inv_number
-                    else:
-                        inv.generate_invoice_number()
+                    inv.generate_invoice_number()
 
             # Save invoice (function-level retry will handle database locks)
             inv.save()
