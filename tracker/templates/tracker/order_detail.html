@@ -1275,7 +1275,7 @@
 
                 <!-- Specific Reason Dropdown -->
                 <div class="mb-2">
-                  <label class="form-label text-muted small">Specific Reason</label>
+                  <label class="form-label text-muted small">Specific Reason <span id="reasonRequiredBadge" class="badge bg-danger ms-2" style="display:none;">Required</span></label>
                   <select id="delayReasonDropdown" name="delay_reason" class="form-select">
                     <option value="">-- Select Specific Reason --</option>
                     {% if delay_reasons_by_category and delay_reasons_by_category.parts %}
@@ -1289,6 +1289,10 @@
                       <option value="4">Need for special-order parts (rare or imported)</option>
                     {% endif %}
                   </select>
+                  <div id="selectedReasonDisplay" class="alert alert-info mt-2" style="display:none;">
+                    <i class="fa fa-check-circle me-2"></i>
+                    <strong>Selected:</strong> <span id="selectedReasonText"></span>
+                  </div>
                 </div>
 
                 <!-- Custom Comments -->
