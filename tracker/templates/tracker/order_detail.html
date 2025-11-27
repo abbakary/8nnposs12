@@ -1430,14 +1430,14 @@
   });
 
   // Attach handlers to buttons inside signature modal
+  const exceeds9HoursCheck = {{ exceeds_9_hours|lower }};
+  const delayReasonDropdownRef = document.getElementById('delayReasonDropdown');
+
   function handleFooterButtonClick(e) {
     e.preventDefault();
     // Check if delay reason is required and validate
-    const exceeds9Hours = {{ exceeds_9_hours|lower }};
-    const delayReasonDropdown = document.getElementById('delayReasonDropdown');
-
-    if (exceeds9Hours && delayReasonDropdown) {
-      const selectedReason = delayReasonDropdown.value;
+    if (exceeds9HoursCheck && delayReasonDropdownRef) {
+      const selectedReason = delayReasonDropdownRef.value;
       if (!selectedReason) {
         alert('Please select a delay reason before completing this order. This order exceeded 9 working hours.');
         return false;
